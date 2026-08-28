@@ -4,4 +4,8 @@ SECTIONS {
 		*(.text)
 		*(.rodata*)
 	}
+	. = 0xffc000;
+	.param : {
+		*(.param)
+	}
 }

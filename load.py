@@ -28,7 +28,23 @@ def open_port(baud):
     return fd
 
 
+def set_baud(fd, baud):
+    attrs = termios.tcgetattr(fd)
+    b = {"9600": termios.B9600, "19200": termios.B19200, "38400": termios.B38400}[str(baud)]
+    attrs[4] = b
+    attrs[5] = b
+    termios.tcsetattr(fd, termios.TCSANOW, attrs)
+
+
+PENDING = b""
+
+
 def read_byte(fd, timeout):
+    global PENDING
+    if PENDING:
+        b = PENDING[0]
+        PENDING = PENDING[1:]
+        return b
     end = time.time() + timeout
     while time.time() < end:
         r, _, _ = select.select([fd], [], [], 0.02)
@@ -79,20 +95,25 @@ def wait_prompt(fd, timeout):
 
 
 def send_lines(fd, mot_path):
+    global PENDING
     with open(mot_path, "rb") as f:
         lines = f.read().splitlines()
     for i, line in enumerate(lines):
-        for ch in line + b"\r":
-            os.write(fd, bytes([ch]))
-            if ch == XOFF:
+        os.write(fd, line + b"\r")
+        end = time.time() + 0.1
+        while time.time() < end:
+            b = read_byte(fd, 0.02)
+            if b == XOFF:
                 while True:
-                    b = read_byte(fd, 5)
-                    if b is None:
+                    b2 = read_byte(fd, 5)
+                    if b2 is None:
                         print(f"ERROR: XOFF but no XON (line {i})")
                         sys.exit(1)
-                    if b == XON:
+                    if b2 == XON:
                         break
-        time.sleep(0.01)
+            elif b is not None:
+                PENDING += bytes([b])
+        time.sleep(0.02)
     print(f"sent {len(lines)} records")
 
 
@@ -106,9 +127,10 @@ def listen(fd, seconds):
 
 
 def main():
-    mot = sys.argv[1] if len(sys.argv) > 1 else "test_serial.mot"
+    mot = sys.argv[1] if len(sys.argv) > 1 else "sender.mot"
     addr = sys.argv[2] if len(sys.argv) > 2 else "ffbf20"
     listen_secs = float(sys.argv[3]) if len(sys.argv) > 3 else 5.0
+    listen_baud = int(sys.argv[4]) if len(sys.argv) > 4 else BAUD
 
     fd = open_port(BAUD)
     drain(fd, 0.5)
@@ -122,6 +144,8 @@ def main():
 
     os.write(fd, f"go {addr}\r".encode())
     print(f"go {addr}: running")
+    if listen_baud != BAUD:
+        set_baud(fd, listen_baud)
     listen(fd, listen_secs)
     os.close(fd)
 

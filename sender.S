@@ -13,16 +13,21 @@ PADR	= 0xffffd9
 
 LED_BIT	= 0x01
 
-BRR_38400	= 15
-SCR_TE		= 0x20
+SCR_TE	= 0x20
 SSR_TDRE	= 0x80
+
+PARAM	= 0xffc000
+OFF_BRR	= 0
+OFF_INTERVAL	= 2
+OFF_LEN	= 6
+OFF_PATTERN	= 8
 
 _start:
 	mov.b	#0x00, r0l
 	mov.b	r0l, @SCR1:24
 	mov.b	#0x00, r0l
 	mov.b	r0l, @SMR1:24
-	mov.b	#BRR_38400, r0l
+	mov.b	@PARAM+OFF_BRR:24, r0l
 	mov.b	r0l, @BRR1:24
 
 	mov.w	#520, r0
@@ -44,8 +49,8 @@ loop:
 	xor.b	#LED_BIT, r0l
 	mov.b	r0l, @PADR:24
 
-	mov.l	#msg, er1
-	mov.b	#msg_len, r2l
+	mov.l	#PARAM+OFF_PATTERN, er1
+	mov.b	@PARAM+OFF_LEN:24, r2l
 send:
 	mov.b	@er1+, r0l
 1:
@@ -59,14 +64,21 @@ send:
 	dec.b	r2l
 	bne	send
 
-	mov.l	#2000000, er0
+	mov.l	@PARAM+OFF_INTERVAL:24, er0
 1:
 	dec.l	#1, er0
 	bne	1b
 
 	bra	loop
 
-msg:
+	.section .param, "a"
+	.align 2
+param_block:
+	.byte	15
+	.byte	0
+	.long	2000000
+	.byte	15
+	.byte	0
 	.ascii	"DSUB9 TEST OK"
 	.byte	0x0d, 0x0a
-.set msg_len, . - msg
+	.space	56 - 15

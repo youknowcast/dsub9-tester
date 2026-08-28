@@ -2,3 +2,4 @@
 *.elf
 *.mot
 *.lst
+__pycache__/

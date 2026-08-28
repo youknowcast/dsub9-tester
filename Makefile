@@ -4,20 +4,18 @@ LD = $(PREFIX)-ld
 OBJCOPY = $(PREFIX)-objcopy
 OBJDUMP = $(PREFIX)-objdump
 
-RAM_BASE = 0xffbf20
-
-all: test_serial.mot test_serial.lst
+all: sender.mot sender.lst
 
 %.o: %.S
 	$(AS) -o $@ $<
 
-test_serial.elf: test_serial.o linker.ld
-	$(LD) -T linker.ld -o $@ test_serial.o
+sender.elf: sender.o linker.ld
+	$(LD) -T linker.ld -o $@ sender.o
 
-test_serial.mot: test_serial.elf
+sender.mot: sender.elf
 	$(OBJCOPY) -O srec $< $@
 
-test_serial.lst: test_serial.elf
+sender.lst: sender.elf
 	$(OBJDUMP) -d $< > $@
 
 clean:
