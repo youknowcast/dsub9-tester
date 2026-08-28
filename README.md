@@ -14,7 +14,7 @@
 | `linker.ld` | RAM 配置用リンカスクリプト (コード 0xffbf20, パラメータ 0xffc000) |
 | `Makefile` | エンジンのビルド → S-record 生成 |
 | `gen_mot.py` | パラメータブロックにパターン・ボーレート・間隔をパッチするツール |
-| `patterns/` | 送信パターンファイル (1行が1パターン, LF は CRLF に変換) |
+| `patterns/` | 送信パターンファイル (詳細は「パターンの作成」) |
 | `load.py` | h8mon ドライバ (`ld` → `go` → 受信表示) |
 
 ## パラメータブロック
@@ -67,13 +67,28 @@ python3 load.py sender.mot ffbf20
 パターン・ボーレート・間隔を変更する場合:
 
 ```sh
-python3 gen_mot.py --pattern patterns/scale.txt --baud 19200 --interval 500000 -o sender_scale.mot
-python3 load.py sender_scale.mot ffbf20 6 19200
+python3 gen_mot.py --pattern patterns/custom.txt --baud 19200 --interval 500000 -o sender_custom.mot
+python3 load.py sender_custom.mot ffbf20 6 19200
 ```
 
 `load.py` の引数: モトファイル, アドレス, 受信時間 (秒), 受信ボーレート (省略時 38400)。モニタとのやり取りは常に 38400 で行い、`go` 後に受信ボーレートへ切り替えます。
 
-`patterns/scale.txt` はサンプルです (`SCALE: 12345.6 kg`)。ファイルの LF は CRLF に自動変換されるため、行末を改行で終えると送信時には CRLF になります。
+## パターンの作成
+
+送信するバイト列は `patterns/` 配下のテキストファイルに 1 行で書きます。
+
+```
+DSUB9 TEST OK
+```
+
+ルール:
+
+- **ファイル内容がそのまま送信バイト列**になります。改行 (`LF`) のみ CRLF (`\r\n`) に自動変換されます。`patterns/default.txt` の `DSUB9 TEST OK` + 改行は `DSUB9 TEST OK\r\n` として送信されます
+- 複数行にすると各行の改行が CRLF になるため、複数レコードを連続送信するパターンも書けます
+- **エスケープ処理はありません**。`\r` 等のエスケープ表記はそのままの文字として送信されます。STX/ETX などの制御文字を含めたい場合は `gen_mot.py` の拡張が必要です
+- パターンは**最大 56 バイト** (CRLF 変換後)。超えると `gen_mot.py` がエラーを返します
+
+作成したパターンファイルは `gen_mot.py` の `--pattern` で指定します。出力先 (`-o`) と `load.py` の引数は任意の名前で構いません。製品 (ベンダ仕様) ごとにパターンファイルを追加することで、エンジン本体を変えずに複数仕様へ対応できます。
 
 ## 動作
 
@@ -105,7 +120,7 @@ BRR は `20MHz / 32 / ボーレート - 1` で計算します。38400 の場合 
 
 ### パターン長
 
-パターンは最大 56 バイトです。超える場合は `gen_mot.py` がエラーを返します。
+パターンは最大 56 バイト (CRLF 変換後) です。超える場合は `gen_mot.py` がエラーを返します。上限を広げるには `sender.S` の `.space` と `gen_mot.py` の `MAX_PATTERN` を同時に変更します。
 
 ## ライセンス
 
