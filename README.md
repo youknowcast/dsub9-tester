@@ -90,6 +90,47 @@ DSUB9 TEST OK
 
 作成したパターンファイルは `gen_mot.py` の `--pattern` で指定します。出力先 (`-o`) と `load.py` の引数は任意の名前で構いません。製品 (ベンダ仕様) ごとにパターンファイルを追加することで、エンジン本体を変えずに複数仕様へ対応できます。
 
+## ターミナルでのシリアル出力の確認
+
+ボードの送信内容は、ターミナルソフトでシリアルポートを直接覗いて確認できます。
+
+`38400` はボーレート (通信速度, 1秒あたりのビット数) です。ボードの送信速度 (h8mon のコンソールおよび `sender.mot` のデフォルト) と受信側を合わせる必要があります。`gen_mot.py` の `--baud` でボーレートを変えた場合は、ここで指定する数値も同じ値に合わせてください。
+
+### Linux
+
+```sh
+stty -F /dev/ttyUSB0 38400 raw -echo && cat /dev/ttyUSB0
+```
+
+Ctrl-C で停止します。ポート名は環境に応じて `ttyUSB0` 以外 (`ttyACM0` 等) の場合があります。`/dev/serial/by-id/` で確認できます。
+
+### Windows
+
+COM ポート番号はデバイスマネージャー (ポート (COM と LPT)) で確認してください。以下は COM3 の例です。
+
+#### cmd (type コマンド)
+
+```bat
+mode COM3: 38400,n,8,1
+type COM3:
+```
+
+Ctrl-C で停止します。
+
+#### PowerShell
+
+```powershell
+$port = New-Object System.IO.Ports.SerialPort COM3,38400,None,8,One
+$port.Open()
+while ($true) { $s = $port.ReadExisting(); if ($s) { Write-Host -NoNewline $s } }
+```
+
+Ctrl-C で停止します。
+
+#### Tera Term / PuTTY
+
+新規接続で COM3 を選択し、38400bps / 8bit / parity none / stop 1bit / flow control none に設定します。Tera Term はシリアル接続の定番ソフトです。
+
 ## 動作
 
 `sender.S` は SCI1 を指定ボーレート 8N1 に初期化し、以下の動作を繰り返します:
